@@ -260,7 +260,7 @@ particles in the angle group, following HOOMD-blue convention).
 #### Setup
 
 For a pair of anisotropic particles $i$ and $j$ separated by
-$\mathbf{r} = \mathbf{r}_i - \mathbf{r}_j$ with $r = |\mathbf{r}| < r_c$,
+$\mathbf{r} = \mathbf{r}_i - \mathbf{r}_j$ with $r = \lvert\mathbf{r}\rvert < r_c$,
 define:
 
 - **Directors**: $\hat{n}_i = \mathrm{rotate}(q_i, \hat{x})$, $\hat{n}_j = \mathrm{rotate}(q_j, \hat{x})$.
@@ -342,7 +342,7 @@ Physically, the torque must vanish at these configurations because
 $\hat{n}_i \times \hat{n}_j \to \mathbf{0}$. The product
 $T_\alpha \cdot (\hat{n}_i \times \hat{n}_j)$ remains finite (by L'Hôpital:
 $\lim_{\alpha\to 0} \sin(m\alpha)/\sin\alpha = m$, multiplied by
-$|\hat{n}_i \times \hat{n}_j| = \sin\alpha \to 0$).
+$\lvert\hat{n}_i \times \hat{n}_j\rvert = \sin\alpha \to 0$).
 
 In the implementation, we set $T_\alpha = 0$ whenever $\sin\alpha < 10^{-8}$.
 
@@ -385,7 +385,7 @@ that no single integer power of $\cos\alpha$ can represent.
 | Force on $k$ | $\mathbf{F}_k = -\mathbf{F}_j$ |
 | Force on $i$ | $\mathbf{F}_i = \mathbf{0}$ |
 
-where $\theta = \arccos(\hat{n}\cdot\hat{d})$, $\hat{n} = \mathrm{rotate}(q_i, \hat{x})$, $\hat{d} = (\mathbf{r}_k - \mathbf{r}_j)/|\mathbf{r}_k - \mathbf{r}_j|$.
+where $\theta = \arccos(\hat{n}\cdot\hat{d})$, $\hat{n} = \mathrm{rotate}(q_i, \hat{x})$, $\hat{d} = (\mathbf{r}_k - \mathbf{r}_j)/\lvert\mathbf{r}_k - \mathbf{r}_j\rvert$.
 
 #### DirectorPair
 
