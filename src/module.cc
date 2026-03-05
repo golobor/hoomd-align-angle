@@ -10,8 +10,10 @@ namespace md
 namespace detail
     {
 void export_AlignAngleForceCompute(pybind11::module& m);
+void export_AnisoPotentialPairNematic(pybind11::module& m);
 #ifdef ENABLE_HIP
 void export_AlignAngleForceComputeGPU(pybind11::module& m);
+void export_AnisoPotentialPairNematicGPU(pybind11::module& m);
 #endif
     } // end namespace detail
     } // end namespace md
@@ -22,7 +24,9 @@ using namespace hoomd::md::detail;
 PYBIND11_MODULE(_align_angle, m)
     {
     export_AlignAngleForceCompute(m);
+    export_AnisoPotentialPairNematic(m);
 #ifdef ENABLE_HIP
     export_AlignAngleForceComputeGPU(m);
+    export_AnisoPotentialPairNematicGPU(m);
 #endif
     }

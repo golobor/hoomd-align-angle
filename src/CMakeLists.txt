@@ -3,15 +3,18 @@ set(COMPONENT_NAME align_angle)
 set(_${COMPONENT_NAME}_sources
     module.cc
     AlignAngleForceCompute.cc
+    AnisoPotentialPairNematic.cc
     )
 
 set(_${COMPONENT_NAME}_headers
     AlignAngleForceCompute.h
+    EvaluatorPairNematic.h
     )
 
 if (ENABLE_HIP)
     list(APPEND _${COMPONENT_NAME}_sources
          AlignAngleForceComputeGPU.cc
+         AnisoPotentialPairNematicGPU.cc
          )
     list(APPEND _${COMPONENT_NAME}_headers
          AlignAngleForceComputeGPU.h
@@ -19,6 +22,7 @@ if (ENABLE_HIP)
          )
     set(_${COMPONENT_NAME}_cu_sources
         AlignAngleForceGPU.cu
+        AnisoPotentialPairNematicGPUKernel.cu
         )
     set_source_files_properties(${_${COMPONENT_NAME}_cu_sources}
         PROPERTIES LANGUAGE ${HOOMD_DEVICE_LANGUAGE})
