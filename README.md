@@ -1,7 +1,9 @@
 # hoomd-align-angle
 
-> **Note:** This README was generated with the assistance of AI (GitHub Copilot)
-> and may contain inaccuracies. Please verify the formulas against the source code.
+**⚠️ This entire repository (code, tests, notebooks, and documentation) was
+generated with the assistance of AI (GitHub Copilot). It may contain errors.
+Please verify the formulas and implementation against your own understanding
+before using in production.**
 
 A [HOOMD-blue](https://hoomd-blue.readthedocs.io/) plugin providing two
 orientation-dependent forces for anisotropic particles:
@@ -379,7 +381,7 @@ that no single integer power of $\cos\alpha$ can represent.
 |----------|------------|
 | Energy | $U = \frac{K}{2}(1 - \cos(m\theta + \varphi_0))$ |
 | Torque on $i$ | $\boldsymbol{\tau}_i = \frac{K}{2} \frac{m\sin(m\theta+\varphi_0)}{\sin\theta} \hat{n}\times\hat{d}$ |
-| Force on $j$ | $\mathbf{F}_j = -\frac{K}{2} \frac{m\sin(m\theta+\varphi_0)}{\sin\theta |\mathbf{d}|} (\hat{n} - \cos\theta \hat{d})$ |
+| Force on $j$ | $\mathbf{F}_j = -\frac{K}{2} \frac{m\sin(m\theta+\varphi_0)}{\sin\theta \cdot \lvert\mathbf{d}\rvert} (\hat{n} - \cos\theta \hat{d})$ |
 | Force on $k$ | $\mathbf{F}_k = -\mathbf{F}_j$ |
 | Force on $i$ | $\mathbf{F}_i = \mathbf{0}$ |
 
