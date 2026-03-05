@@ -197,7 +197,7 @@ An **angle group** $(i, j, k)$ defines two geometric objects:
 2. The **target direction** from guide particle $j$ to guide particle $k$:
 
 $$\mathbf{d} = \mathbf{r}_k - \mathbf{r}_j, \qquad
-\hat{d} = \frac{\mathbf{d}}{|\mathbf{d}|}.$$
+$$\hat{d} = \frac{\mathbf{d}}{\lvert\mathbf{d}\rvert}.$$
 
 (Minimum-image convention is applied to $\mathbf{d}$ for periodic boundaries.)
 
@@ -207,7 +207,7 @@ $$\theta = \arccos(\hat{n} \cdot \hat{d}), \qquad \theta \in [0, \pi].$$
 
 #### Potential energy
 
-$$\boxed{U = \frac{K}{2}\bigl(1 - \cos(m \theta + \varphi_0)\bigr)}$$
+$$U = \frac{K}{2}\bigl(1 - \cos(m \theta + \varphi_0)\bigr)$$
 
 This vanishes at the minimum ($m \theta + \varphi_0 = 0 \bmod 2\pi$)
 and reaches $K$ at the maximum.
@@ -219,9 +219,10 @@ The orientational gradient gives a torque (in the lab frame):
 
 $$\boldsymbol{\tau}_i
 = -\frac{\partial U}{\partial \hat{n}} \times \hat{n}
-= \frac{K}{2} \underbrace{\frac{m \sin(m\theta + \varphi_0)}{\sin\theta}}_{\displaystyle \equiv F_\theta} \hat{n} \times \hat{d}.$$
+= \frac{K}{2} F_\theta \; \hat{n} \times \hat{d}$$
 
-The factor $F_\theta$ generalises the simple $m{=}1$ result. When
+where $F_\theta = m \sin(m\theta + \varphi_0) / \sin\theta$ generalises
+the simple $m{=}1$ result. When
 $\sin\theta \to 0$ (parallel or anti-parallel), the cross product
 $\hat{n} \times \hat{d}$ also vanishes, keeping the product finite;
 numerically we set $F_\theta = 0$ when $\sin\theta < 10^{-8}$.
@@ -234,7 +235,7 @@ $\mathbf{r}_j$ (with $\hat{d}$ depending on $\mathbf{r}_k - \mathbf{r}_j$):
 
 $$\mathbf{F}_j
 = -\frac{\partial U}{\partial \mathbf{r}_j}
-= -\frac{K}{2} \frac{F_\theta}{|\mathbf{d}|} 
+= -\frac{K}{2} \frac{F_\theta}{\lvert\mathbf{d}\rvert}
  \bigl(\hat{n} - \cos\theta \hat{d}\bigr).$$
 
 Newton's third law for the guide pair gives
@@ -279,7 +280,7 @@ $$g = x^2, \qquad
 
 #### Potential energy
 
-$$\boxed{U = -\varepsilon \cos(m \alpha + \varphi_0) g(r)}$$
+$$U = -\varepsilon \cos(m \alpha + \varphi_0) \; g(r)$$
 
 The factors separate into an angular part (coupling strength × angular
 preference) and a radial part (distance modulation with smooth cutoff).
@@ -291,11 +292,8 @@ $g(r)$ with respect to $\mathbf{r}$:
 
 $$\mathbf{F}_i^{(\mathrm{radial})}
 = -\frac{\partial U}{\partial \mathbf{r}}
-= -\varepsilon \cos(m\alpha + \varphi_0) \frac{dg}{d\mathbf{r}}$$
-
-$$= -\varepsilon \cos(m\alpha + \varphi_0) \cdot \left(-\frac{4x}{r_c^2}\right)\mathbf{r}$$
-
-$$\boxed{\mathbf{F}_i^{(\mathrm{radial})} = \frac{4\varepsilon \cos(m\alpha+\varphi_0) x}{r_c^2} \mathbf{r}}$$
+= -\varepsilon \cos(m\alpha + \varphi_0) \frac{dg}{d\mathbf{r}}
+= \frac{4\varepsilon \cos(m\alpha+\varphi_0) x}{r_c^2} \mathbf{r}$$
 
 where $\mathbf{r} = \mathbf{r}_i - \mathbf{r}_j$.
 When $\cos(m\alpha + \varphi_0) > 0$ (favourable angular alignment), the
@@ -311,10 +309,9 @@ The angular part of $U$ depends on $\hat{n}_i$ and $\hat{n}_j$. Differentiating
 with respect to the orientations:
 
 $$\boldsymbol{\tau}_i
-= -\frac{\partial U}{\partial \hat{n}_i} \times \hat{n}_i
-= \varepsilon 
- \underbrace{\frac{m \sin(m\alpha + \varphi_0)}{\sin\alpha}}_{\displaystyle T_\alpha}
- g(r) \hat{n}_i \times \hat{n}_j.$$
+= \varepsilon T_\alpha \; g(r) \; \hat{n}_i \times \hat{n}_j$$
+
+where $T_\alpha = m \sin(m\alpha + \varphi_0) / \sin\alpha$.
 
 **Derivation sketch.** The chain rule gives
 
