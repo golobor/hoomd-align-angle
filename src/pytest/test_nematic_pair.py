@@ -1,7 +1,7 @@
 # Copyright (c) 2025 Goloborodko Lab.
 # Released under the BSD 3-Clause License.
 
-"""Tests for the NematicPair anisotropic pair potential.
+"""Tests for the DirectorPair anisotropic pair potential.
 
 Potential: U = -epsilon * (n_i . n_j)^p * (1 - r^2/r_c^2)^2
 
@@ -41,12 +41,12 @@ def make_pair_snapshot(device, pos_i, pos_j, quat_i, quat_j, L=20.0):
 
 
 def make_sim_with_nematic(device, snap, epsilon, r_cut, power=2):
-    """Set up a simulation with only the NematicPair force."""
+    """Set up a simulation with only the DirectorPair force."""
     sim = hoomd.Simulation(device=device)
     sim.create_state_from_snapshot(snap)
 
     nlist = hoomd.md.nlist.Cell(buffer=0.4)
-    nematic = align_angle.NematicPair(nlist=nlist, default_r_cut=r_cut)
+    nematic = align_angle.DirectorPair(nlist=nlist, default_r_cut=r_cut)
     nematic.params[("A", "A")] = dict(epsilon=epsilon, power=power)
 
     nve = hoomd.md.methods.ConstantVolume(filter=hoomd.filter.All())
@@ -62,7 +62,7 @@ def device():
     return hoomd.device.auto_select()
 
 
-class TestNematicPairEnergy:
+class TestDirectorPairEnergy:
 
     def test_parallel_aligned(self, device):
         """Parallel orientations: U = -epsilon * g(r)."""
@@ -179,7 +179,7 @@ class TestNematicPairEnergy:
             assert abs(total_e) < 1e-6  # very close to zero at cutoff
 
 
-class TestNematicPairForces:
+class TestDirectorPairForces:
 
     def test_force_attractive_when_aligned(self, device):
         """Aligned particles within cutoff → attractive force (toward each other)."""
@@ -253,7 +253,7 @@ class TestNematicPairForces:
             np.testing.assert_allclose(forces, 0.0, atol=1e-10)
 
 
-class TestNematicPairTorques:
+class TestDirectorPairTorques:
 
     def test_no_torque_when_aligned(self, device):
         """Parallel orientations: d(n_i.n_j)^2 / d_angle = 0 → zero torque."""
@@ -318,7 +318,7 @@ class TestNematicPairTorques:
         sim.create_state_from_snapshot(snap)
 
         nlist = hoomd.md.nlist.Cell(buffer=0.4)
-        nematic = align_angle.NematicPair(nlist=nlist, default_r_cut=r_cut)
+        nematic = align_angle.DirectorPair(nlist=nlist, default_r_cut=r_cut)
         nematic.params[("A", "A")] = dict(epsilon=epsilon, power=2)
 
         # Fix positions, only integrate orientational DOF
@@ -357,7 +357,7 @@ class TestNematicPairTorques:
         )
 
 
-class TestNematicPairNumerical:
+class TestDirectorPairNumerical:
 
     def test_energy_formula(self, device):
         """Verify energy matches the analytic formula for a general configuration."""
@@ -556,7 +556,7 @@ class TestPolarMode:
         sim.create_state_from_snapshot(snap)
 
         nlist = hoomd.md.nlist.Cell(buffer=0.4)
-        nematic = align_angle.NematicPair(nlist=nlist, default_r_cut=r_cut)
+        nematic = align_angle.DirectorPair(nlist=nlist, default_r_cut=r_cut)
         nematic.params[("A", "A")] = dict(epsilon=epsilon, power=1)
 
         langevin = hoomd.md.methods.Langevin(filter=hoomd.filter.All(), kT=0.0)

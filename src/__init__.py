@@ -1,10 +1,10 @@
-"""Align-angle and nematic pair force plugin for HOOMD-blue.
+"""Director-alignment forces plugin for HOOMD-blue.
 
 Provides:
 
-* ``Align`` — an angle force that aligns an oriented particle's body-frame
-  x-axis to the direction defined by two guide particles.
-* ``NematicPair`` — an anisotropic pair potential that attracts particles
+* ``DirectorAlign`` — an angle force that aligns an oriented particle's
+  body-frame x-axis to the direction defined by two guide particles.
+* ``DirectorPair`` — an anisotropic pair potential that attracts particles
   with parallel or anti-parallel orientations.
 """
 
@@ -16,13 +16,13 @@ from hoomd.data.parameterdicts import TypeParameterDict
 from hoomd.align_angle import _align_angle
 
 
-class Align(Angle):
+class DirectorAlign(Angle):
     r"""Orientation-alignment angle force.
 
     Args:
         None
 
-    `Align` computes an angular potential that aligns the body-frame x-axis of
+    `DirectorAlign` computes an angular potential that aligns the body-frame x-axis of
     particle *i* with the direction from particle *j* to particle *k*.
 
     For each angle :math:`(i, j, k)`:
@@ -54,7 +54,7 @@ class Align(Angle):
 
     Example::
 
-        align = align_angle.Align()
+        align = align_angle.DirectorAlign()
         align.params["polymer"] = dict(k=10.0)
         sim.operations.integrator.forces.append(align)
 
@@ -80,15 +80,15 @@ class Align(Angle):
         self._add_typeparam(params)
 
 
-class NematicPair(AnisotropicPair):
-    r"""Nematic orientation-dependent pair potential.
+class DirectorPair(AnisotropicPair):
+    r"""Director orientation-dependent pair potential.
 
     Args:
         nlist (hoomd.md.nlist.NeighborList): Neighbor list.
         default_r_cut (float): Default cutoff radius :math:`[\mathrm{length}]`.
         mode (str): Energy shifting mode (``"none"`` or ``"shift"``).
 
-    `NematicPair` computes an anisotropic pair potential whose orientational
+    `DirectorPair` computes an anisotropic pair potential whose orientational
     coupling is controlled by the ``power`` parameter:
 
     .. math::
@@ -112,15 +112,15 @@ class NematicPair(AnisotropicPair):
     Example::
 
         nlist = hoomd.md.nlist.Cell(buffer=0.4)
-        nematic = align_angle.NematicPair(nlist=nlist, default_r_cut=3.0)
+        director = align_angle.DirectorPair(nlist=nlist, default_r_cut=3.0)
 
         # Nematic (default, power=2)
-        nematic.params[("A", "A")] = dict(epsilon=5.0, power=2)
+        director.params[("A", "A")] = dict(epsilon=5.0, power=2)
 
         # Polar
-        nematic.params[("A", "A")] = dict(epsilon=5.0, power=1)
+        director.params[("A", "A")] = dict(epsilon=5.0, power=1)
 
-        sim.operations.integrator.forces.append(nematic)
+        sim.operations.integrator.forces.append(director)
 
     Attributes:
         params (TypeParameter[``particle types``, dict]):

@@ -43,7 +43,7 @@ class TestAlignAngleForce:
 
     def test_params(self, device):
         """Test setting and getting parameters."""
-        force = align_angle.Align()
+        force = align_angle.DirectorAlign()
         force.params["align"] = dict(k=10.0)
         assert force.params["align"]["k"] == pytest.approx(10.0)
 
@@ -61,7 +61,7 @@ class TestAlignAngleForce:
         sim = hoomd.Simulation(device=device)
         sim.create_state_from_snapshot(snap)
 
-        force = align_angle.Align()
+        force = align_angle.DirectorAlign()
         force.params["align"] = dict(k=10.0)
 
         nve = hoomd.md.methods.ConstantVolume(filter=hoomd.filter.All())
@@ -87,7 +87,7 @@ class TestAlignAngleForce:
         sim = hoomd.Simulation(device=device)
         sim.create_state_from_snapshot(snap)
 
-        force = align_angle.Align()
+        force = align_angle.DirectorAlign()
         k = 6.0
         force.params["align"] = dict(k=k)
 
@@ -117,7 +117,7 @@ class TestAlignAngleForce:
         sim = hoomd.Simulation(device=device)
         sim.create_state_from_snapshot(snap)
 
-        force = align_angle.Align()
+        force = align_angle.DirectorAlign()
         k = 8.0
         force.params["align"] = dict(k=k)
 
@@ -145,7 +145,7 @@ class TestAlignAngleForce:
         sim = hoomd.Simulation(device=device)
         sim.create_state_from_snapshot(snap)
 
-        force = align_angle.Align()
+        force = align_angle.DirectorAlign()
         force.params["align"] = dict(k=5.0)
 
         nve = hoomd.md.methods.ConstantVolume(filter=hoomd.filter.All())
@@ -172,7 +172,7 @@ class TestAlignAngleForce:
         sim = hoomd.Simulation(device=device)
         sim.create_state_from_snapshot(snap)
 
-        force = align_angle.Align()
+        force = align_angle.DirectorAlign()
         force.params["align"] = dict(k=10.0)
 
         nve = hoomd.md.methods.ConstantVolume(filter=hoomd.filter.All())
@@ -205,7 +205,7 @@ class TestAlignAngleForce:
         sim = hoomd.Simulation(device=device)
         sim.create_state_from_snapshot(snap)
 
-        force = align_angle.Align()
+        force = align_angle.DirectorAlign()
         force.params["align"] = dict(k=10.0)
 
         nve = hoomd.md.methods.ConstantVolume(filter=hoomd.filter.All())

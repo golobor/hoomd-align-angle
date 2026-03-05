@@ -3,16 +3,16 @@
 A [HOOMD-blue](https://hoomd-blue.readthedocs.io/) plugin providing two
 orientation-dependent forces for anisotropic particles:
 
-1. **`Align`** — aligns a particle's body axis to a direction defined by two
+1. **`DirectorAlign`** — aligns a particle's body axis to a direction defined by two
    guide particles (angle topology).
-2. **`NematicPair`** — an anisotropic pair potential that couples neighbouring
+2. **`DirectorPair`** — an anisotropic pair potential that couples neighbouring
    particle orientations (nematic or polar symmetry).
 
 Both forces run on **CPU and GPU** (HIP/CUDA).
 
 ---
 
-## 1. Align (angle force)
+## 1. DirectorAlign (angle force)
 
 ### Physics
 
@@ -38,7 +38,7 @@ Forces and torques:
 import hoomd
 from hoomd import align_angle
 
-align_force = align_angle.Align()
+align_force = align_angle.DirectorAlign()
 align_force.params["align"] = dict(k=20.0)
 
 integrator = hoomd.md.Integrator(dt=0.005, methods=[...], forces=[align_force])
@@ -47,7 +47,7 @@ integrator.integrate_rotational_dof = True  # required!
 
 ---
 
-## 2. NematicPair (anisotropic pair potential)
+## 2. DirectorPair (anisotropic pair potential)
 
 ### Physics
 
@@ -77,11 +77,11 @@ from hoomd import align_angle
 nlist = hoomd.md.nlist.Cell(buffer=0.4)
 
 # Nematic coupling (default power=2):
-nematic = align_angle.NematicPair(nlist=nlist, default_r_cut=1.5)
+nematic = align_angle.DirectorPair(nlist=nlist, default_r_cut=1.5)
 nematic.params[("A", "A")] = dict(epsilon=4.0, power=2)
 
 # Polar coupling (power=1):
-polar = align_angle.NematicPair(nlist=nlist, default_r_cut=1.5)
+polar = align_angle.DirectorPair(nlist=nlist, default_r_cut=1.5)
 polar.params[("A", "A")] = dict(epsilon=4.0, power=1)
 
 integrator = hoomd.md.Integrator(dt=0.005, methods=[...], forces=[nematic])
@@ -113,7 +113,7 @@ cmake --install build
 python -m pytest src/pytest/test_align_angle.py src/pytest/test_nematic_pair.py
 ```
 
-26 tests total (7 align + 19 nematic, including 6 polar-mode tests).
+26 tests total (7 DirectorAlign + 19 DirectorPair, including 6 polar-mode tests).
 
 ## License
 
