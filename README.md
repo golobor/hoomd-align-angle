@@ -1,4 +1,4 @@
-# hoomd-align-angle
+# hoomd-glab-plugins
 
 **⚠️ This entire repository (code, tests, notebooks, and documentation) was
 generated with the assistance of AI (GitHub Copilot). It may contain errors.
