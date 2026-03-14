@@ -109,13 +109,22 @@ integrator.integrate_rotational_dof = True  # required!
 
 ## Building
 
-Requires HOOMD-blue ≥ 5.0.0 built with GPU support (HIP/CUDA).
+Compatible with both **upstream HOOMD-blue** (glotzerlab) and the
+**[hoomd-sloptimize](https://github.com/glab-vbc/hoomd-sloptimize)** mixed-precision fork.
+Requires GPU support (HIP/CUDA).
 
 ```bash
-cmake -B build -S . -DCMAKE_INSTALL_PREFIX=$(python -c "import hoomd; print(hoomd.__path__[0] + '/..')")
+# Point CMAKE_PREFIX_PATH at the HOOMD install prefix
+# (the directory containing lib/python3.X/site-packages/hoomd/)
+cmake -B build -S . -DCMAKE_PREFIX_PATH=/path/to/hoomd-install
 cmake --build build -j$(nproc)
 cmake --install build
 ```
+
+When building against hoomd-sloptimize, forces are automatically evaluated in
+`ForceReal` (float32) precision. Against upstream HOOMD, `ForceReal` is aliased
+to `Scalar` via the `MixedPrecisionCompat.h` shim, so no source changes are
+needed.
 
 ## Tests
 

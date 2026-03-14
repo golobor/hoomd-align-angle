@@ -30,6 +30,7 @@
 
 #include "hoomd/HOOMDMath.h"
 #include "hoomd/VectorMath.h"
+#include "MixedPrecisionCompat.h"
 
 #ifdef __HIPCC__
 #define HOSTDEVICE __host__ __device__
@@ -117,12 +118,13 @@ class EvaluatorPairNematic
         \param _rcutsq Squared cutoff distance
         \param _params Per-type-pair parameters
     */
-    HOSTDEVICE EvaluatorPairNematic(const Scalar3& _dr,
+    HOSTDEVICE EvaluatorPairNematic(const ForceReal3& _dr,
                                     const Scalar4& _quat_i,
                                     const Scalar4& _quat_j,
-                                    const Scalar _rcutsq,
+                                    const ForceReal _rcutsq,
                                     const param_type& _params)
-        : dr(_dr), quat_i(_quat_i), quat_j(_quat_j), rcutsq(_rcutsq),
+        : dr(make_scalar3(Scalar(_dr.x), Scalar(_dr.y), Scalar(_dr.z))),
+          quat_i(_quat_i), quat_j(_quat_j), rcutsq(Scalar(_rcutsq)),
           epsilon(_params.epsilon), multiplicity(_params.multiplicity),
           phase(_params.phase)
         {
@@ -160,7 +162,23 @@ class EvaluatorPairNematic
         \param torque_j Output: torque on particle j
         \return true if within cutoff, false otherwise
     */
-    HOSTDEVICE bool evaluate(Scalar3& force,
+    HOSTDEVICE bool evaluate(ForceReal3& force,
+                             ForceReal& pair_eng,
+                             bool energy_shift,
+                             ForceReal3& torque_i,
+                             ForceReal3& torque_j)
+        {
+        Scalar3 force_s{}, torque_i_s{}, torque_j_s{};
+        Scalar pair_eng_s{};
+        bool ret = evaluate_scalar(force_s, pair_eng_s, energy_shift, torque_i_s, torque_j_s);
+        force = make_forcereal3(ForceReal(force_s.x), ForceReal(force_s.y), ForceReal(force_s.z));
+        pair_eng = ForceReal(pair_eng_s);
+        torque_i = make_forcereal3(ForceReal(torque_i_s.x), ForceReal(torque_i_s.y), ForceReal(torque_i_s.z));
+        torque_j = make_forcereal3(ForceReal(torque_j_s.x), ForceReal(torque_j_s.y), ForceReal(torque_j_s.z));
+        return ret;
+        }
+
+    HOSTDEVICE bool evaluate_scalar(Scalar3& force,
                              Scalar& pair_eng,
                              bool energy_shift,
                              Scalar3& torque_i,

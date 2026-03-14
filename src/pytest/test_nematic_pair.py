@@ -18,6 +18,19 @@ import pytest
 from hoomd import align_angle
 
 
+def _is_mixed_precision():
+    """Detect if HOOMD was built with mixed precision (64/32)."""
+    try:
+        return hoomd.version.floating_point_precision[0] != hoomd.version.floating_point_precision[1]
+    except (AttributeError, TypeError):
+        return False
+
+
+# Finite-difference force tests need looser tolerance in mixed precision
+# because forces are evaluated in float32 while the FD reference uses float64.
+FD_ATOL = 0.02 if _is_mixed_precision() else 1e-3
+
+
 def quat_rotate(q, v):
     """Rotate vector v by quaternion q = (s, vx, vy, vz)."""
     s, qv = q[0], np.array(q[1:])
@@ -457,7 +470,7 @@ class TestDirectorPairNumerical:
         grad /= 2 * h
         force_numerical = -grad
 
-        np.testing.assert_allclose(force_on_j, force_numerical, atol=1e-3)
+        np.testing.assert_allclose(force_on_j, force_numerical, atol=FD_ATOL)
 
 
 class TestPolarMode:
@@ -687,7 +700,7 @@ class TestPolarMode:
         grad /= 2 * h
         force_numerical = -grad
 
-        np.testing.assert_allclose(force_on_j, force_numerical, atol=1e-3)
+        np.testing.assert_allclose(force_on_j, force_numerical, atol=FD_ATOL)
 
 
 class TestDirectorPairPhase:
@@ -823,4 +836,4 @@ class TestDirectorPairPhase:
         grad /= 2 * h
         force_numerical = -grad
 
-        np.testing.assert_allclose(force_on_j, force_numerical, atol=1e-3)
+        np.testing.assert_allclose(force_on_j, force_numerical, atol=FD_ATOL)

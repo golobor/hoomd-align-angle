@@ -2,6 +2,7 @@
 // Released under the BSD 3-Clause License.
 
 #include "AlignAngleForceCompute.h"
+#include "MixedPrecisionCompat.h"
 
 #include <cmath>
 #include <iostream>
@@ -122,9 +123,9 @@ void AlignAngleForceCompute::computeForces(uint64_t timestep)
     ArrayHandle<unsigned int> h_rtag(m_pdata->getRTags(), access_location::host, access_mode::read);
 
     // Access force/torque/virial output
-    ArrayHandle<Scalar4> h_force(m_force, access_location::host, access_mode::overwrite);
-    ArrayHandle<Scalar4> h_torque(m_torque, access_location::host, access_mode::overwrite);
-    ArrayHandle<Scalar> h_virial(m_virial, access_location::host, access_mode::overwrite);
+    ArrayHandle<ForceReal4> h_force(m_force, access_location::host, access_mode::overwrite);
+    ArrayHandle<ForceReal4> h_torque(m_torque, access_location::host, access_mode::overwrite);
+    ArrayHandle<ForceReal> h_virial(m_virial, access_location::host, access_mode::overwrite);
     size_t virial_pitch = m_virial.getPitch();
 
     // Zero output arrays

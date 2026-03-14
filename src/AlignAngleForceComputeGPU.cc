@@ -6,6 +6,7 @@
 */
 
 #include "AlignAngleForceComputeGPU.h"
+#include "MixedPrecisionCompat.h"
 
 using namespace std;
 
@@ -47,16 +48,22 @@ void AlignAngleForceComputeGPU::setParams(unsigned int type, Scalar K, unsigned 
 
 void AlignAngleForceComputeGPU::computeForces(uint64_t timestep)
     {
-    ArrayHandle<Scalar4> d_pos(m_pdata->getPositions(), access_location::device, access_mode::read);
+    ArrayHandle<ForceReal4> d_pos(
+#ifdef HOOMD_HAS_FORCEREAL
+        m_pdata->getPositionsForceReal(),
+#else
+        m_pdata->getPositions(),
+#endif
+        access_location::device, access_mode::read);
     ArrayHandle<Scalar4> d_orientation(m_pdata->getOrientationArray(),
                                        access_location::device,
                                        access_mode::read);
 
     BoxDim box = m_pdata->getGlobalBox();
 
-    ArrayHandle<Scalar4> d_force(m_force, access_location::device, access_mode::overwrite);
-    ArrayHandle<Scalar4> d_torque(m_torque, access_location::device, access_mode::overwrite);
-    ArrayHandle<Scalar> d_virial(m_virial, access_location::device, access_mode::overwrite);
+    ArrayHandle<ForceReal4> d_force(m_force, access_location::device, access_mode::overwrite);
+    ArrayHandle<ForceReal4> d_torque(m_torque, access_location::device, access_mode::overwrite);
+    ArrayHandle<ForceReal> d_virial(m_virial, access_location::device, access_mode::overwrite);
     ArrayHandle<Scalar4> d_params(m_params_gpu, access_location::device, access_mode::read);
 
     ArrayHandle<AngleData::members_t> d_gpu_anglelist(m_angle_data->getGPUTable(),

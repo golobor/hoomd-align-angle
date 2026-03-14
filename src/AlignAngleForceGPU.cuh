@@ -4,6 +4,7 @@
 #include "hoomd/BondedGroupData.cuh"
 #include "hoomd/HOOMDMath.h"
 #include "hoomd/ParticleData.cuh"
+#include "MixedPrecisionCompat.h"
 
 /*! \file AlignAngleForceGPU.cuh
     \brief Declares GPU kernel code for calculating the align-angle forces.
@@ -19,12 +20,12 @@ namespace md
 namespace kernel
     {
 //! Kernel driver that computes align angle forces for AlignAngleForceComputeGPU
-hipError_t gpu_compute_align_angle_forces(Scalar4* d_force,
-                                          Scalar4* d_torque,
-                                          Scalar* d_virial,
+hipError_t gpu_compute_align_angle_forces(ForceReal4* d_force,
+                                          ForceReal4* d_torque,
+                                          ForceReal* d_virial,
                                           const size_t virial_pitch,
                                           const unsigned int N,
-                                          const Scalar4* d_pos,
+                                          const ForceReal4* d_pos,
                                           const Scalar4* d_orientation,
                                           const BoxDim& box,
                                           const group_storage<3>* atable,
