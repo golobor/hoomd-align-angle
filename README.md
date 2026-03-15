@@ -5,15 +5,18 @@ generated with the assistance of AI (GitHub Copilot). It may contain errors.
 Please verify the formulas and implementation against your own understanding
 before using in production.**
 
-A [HOOMD-blue](https://hoomd-blue.readthedocs.io/) plugin providing two
-orientation-dependent forces for anisotropic particles:
+A [HOOMD-blue](https://hoomd-blue.readthedocs.io/) plugin providing three
+custom forces for anisotropic and bonded-interaction simulations:
 
 1. **`DirectorAlign`** — aligns a particle's body axis to a direction defined by two
    guide particles (angle topology).
 2. **`DirectorPair`** — an anisotropic pair potential that couples neighbouring
    particle orientations (nematic or polar symmetry).
+3. **`SinSqDihedral`** — a **singularity-free** dihedral potential that multiplies
+   the standard periodic torsion by sin²θ₁ sin²θ₂, smoothly sending forces to
+   zero at collinear geometries.
 
-Both forces run on **CPU and GPU** (HIP/CUDA).
+All forces run on **CPU and GPU** (HIP/CUDA).
 
 ---
 
@@ -107,6 +110,72 @@ integrator.integrate_rotational_dof = True  # required!
 
 ---
 
+## 3. SinSqDihedral (singularity-free dihedral)
+
+### Physics
+
+The standard HOOMD `Periodic` dihedral potential
+$U = \frac{k}{2}(1 + d\cos(n\phi - \phi_0))$
+produces forces proportional to $1/\sin\theta$ where $\theta$ is the bond
+angle at the central atoms of the dihedral quartet $(a,b,c,d)$. When three
+consecutive atoms become collinear ($\theta \to 0$ or $\pi$), these forces
+diverge, causing simulation instability.
+
+`SinSqDihedral` eliminates this singularity by multiplying the potential with
+$\sin^2\theta_1\,\sin^2\theta_2$:
+
+$$U = \frac{k}{2}\bigl(1 + d\,\cos(n\phi - \phi_0)\bigr)\,\sin^2\!\theta_{abc}\;\sin^2\!\theta_{bcd}$$
+
+where $\theta_{abc}$ and $\theta_{bcd}$ are the bond angles at the two central
+atoms.
+
+**Key properties:**
+
+- When $\theta_1 = \theta_2 = 90°$, the $\sin^2$ factors are unity and the
+  potential reduces to the standard periodic dihedral.
+- As any three consecutive atoms become collinear ($\theta \to 0$ or $\pi$),
+  both potential and forces smoothly go to zero — no divergence.
+- All forces and virials are analytic and finite everywhere.
+
+This is particularly important for **comb polymers**, **branched topologies**,
+and any system where backbone bending allows near-collinear configurations.
+
+### Usage
+
+```python
+import hoomd
+from hoomd import align_angle
+
+sinsq = align_angle.SinSqDihedral()
+# d=-1 → minimum at φ=0 (cis); d=+1 → minimum at φ=π (trans)
+sinsq.params["backbone"] = dict(k=5.0, d=-1, n=1, phi0=0)
+
+integrator = hoomd.md.Integrator(dt=0.005, methods=[...], forces=[sinsq])
+```
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `k` | float | — | Spring constant $[\mathrm{energy}]$ |
+| `d` | float | — | Sign factor ($+1$ or $-1$) |
+| `n` | int | — | Multiplicity |
+| `phi0` | float | 0.0 | Phase offset $\phi_0$ (radians) |
+
+### Demo notebook
+
+See `demo_sinsq_dihedral.ipynb` for:
+
+1. **Force landscape** — 2-D heatmaps comparing force magnitudes of
+   `SinSqDihedral` (bounded) vs. `Periodic` (divergent) across all bond-angle
+   combinations.
+2. **Comb polymer simulation** — A 1000-particle comb polymer with T-shaped
+   junctions initialized from a random-walk backbone.
+3. **Stability comparison** — `SinSqDihedral` survives 2.5× larger time steps
+   than `Periodic` on the same system.
+
+---
+
 ## Building
 
 Compatible with both **upstream HOOMD-blue** (glotzerlab) and the
@@ -129,10 +198,10 @@ needed.
 ## Tests
 
 ```bash
-python -m pytest src/pytest/test_align_angle.py src/pytest/test_nematic_pair.py
+python -m pytest src/pytest/test_align_angle.py src/pytest/test_nematic_pair.py src/pytest/test_sinsq_dihedral.py
 ```
 
-38 tests total (15 DirectorAlign + 23 DirectorPair).
+50 tests total (15 DirectorAlign + 23 DirectorPair + 12 SinSqDihedral).
 
 ---
 
@@ -159,12 +228,13 @@ $$\hat{n} = \mathrm{rotate}(q, \hat{x})$$
 
 where $\hat{x} = (1,0,0)$ is the body-frame x-axis.
 
-This plugin provides two complementary forces:
+This plugin provides three forces:
 
 | Force | Topology | Purpose |
 |-------|----------|---------|
 | `DirectorAlign` | Angle $(i,j,k)$ | Steer particle $i$'s director toward an externally defined direction |
 | `DirectorPair` | Pair $(i,j)$ | Couple neighbouring particle directors to each other |
+| `SinSqDihedral` | Dihedral $(a,b,c,d)$ | Singularity-free dihedral that vanishes at collinear geometries |
 
 Both potentials share the same `(multiplicity, phase)` parametrization of their
 angular dependence, described next.
@@ -416,6 +486,25 @@ where $\theta = \arccos(\hat{n}\cdot\hat{d})$, $\hat{n} = \mathrm{rotate}(q_i, \
 | Force on $j$ | $\mathbf{F}_j = -\mathbf{F}_i$ |
 
 where $\alpha = \arccos(\hat{n}_i \cdot \hat{n}_j)$, $\mathbf{r} = \mathbf{r}_i - \mathbf{r}_j$.
+
+#### SinSqDihedral
+
+| Quantity | Expression |
+|----------|------------|
+| Energy | $U = \frac{k}{2}(1 + d\cos(n\phi - \phi_0))\sin^2\theta_1\sin^2\theta_2$ |
+| Force on atom $a$ | Analytic; proportional to $\sin\theta_1\sin^2\theta_2$ (bounded) |
+| Force on atom $d$ | Analytic; proportional to $\sin^2\theta_1\sin\theta_2$ (bounded) |
+| Forces on atoms $b,c$ | Analytic; include both torsional and bond-angle coupling terms |
+
+where $\phi$ is the dihedral angle of quartet $(a,b,c,d)$,
+$\theta_1 = \theta_{abc}$ is the bond angle at $b$, and
+$\theta_2 = \theta_{bcd}$ is the bond angle at $c$.
+
+All forces remain finite everywhere. When $\theta_1 \to 0$ or $\pi$
+(atoms $a,b,c$ collinear), the $\sin^2\theta_1$ prefactor sends $U \to 0$
+and the $1/\sin\theta_1$ from the dihedral-angle derivative is cancelled
+by the $\sin\theta_1$ from the product rule, leaving a bounded result.
+The same applies for $\theta_2$.
 
 ---
 
