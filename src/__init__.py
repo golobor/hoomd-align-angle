@@ -6,13 +6,20 @@ Provides:
   body-frame x-axis to the direction defined by two guide particles.
 * ``DirectorPair`` — an anisotropic pair potential that attracts particles
   with parallel or anti-parallel orientations.
+* ``ExternalPatch`` — a patch interaction with externally defined patch
+  directions (no quaternion DOFs required).
 """
 
+import copy
+
+import hoomd
 from hoomd.md.angle import Angle
 from hoomd.md.dihedral import Dihedral
+from hoomd.md.force import Force
 from hoomd.md.pair.aniso import AnisotropicPair
 from hoomd.data.typeparam import TypeParameter
-from hoomd.data.parameterdicts import TypeParameterDict
+from hoomd.data.parameterdicts import TypeParameterDict, ParameterDict
+from hoomd.md import _md
 
 from hoomd.align_angle import _align_angle
 
@@ -208,3 +215,157 @@ class SinSqDihedral(Dihedral):
             TypeParameterDict(k=float, d=float, n=int, phi0=0.0, len_keys=1),
         )
         self._add_typeparam(params)
+
+
+class ExternalPatch(Force):
+    r"""Patch interaction with externally defined patch directions.
+
+    Each designated particle *i* carries a virtual "patch" whose direction
+    is the unit vector from *i* toward its partner *j*.  When two patched
+    particles approach within ``r_cut``, they interact via:
+
+    .. math::
+
+        U_{ik} = f_i\,f_k\;\epsilon\!\left(1 - r^2/r_c^2\right)^2
+
+    where :math:`f_i` is a cubic Hermite (smoothstep) angular envelope:
+
+    .. math::
+
+        t = \mathrm{clamp}\!\left(\frac{u - (1 - w)}{w},\, 0,\, 1\right),
+        \qquad f = 3t^2 - 2t^3
+
+    with :math:`u = \hat{p}_i \cdot \hat{r}_{ik}` and ``w`` = ``width``.
+    The patch is fully active (:math:`f = 1`) when the cosine alignment
+    :math:`u \ge 1` (perfect alignment) and fully inactive (:math:`f = 0`)
+    when :math:`u \le 1 - w`.
+
+    No orientational (quaternion) degrees of freedom are required — the
+    "torque" on the patch direction manifests as non-central translational
+    forces on particles *i* and *j* (and similarly on *k* and *l*).
+
+    Args:
+        nlist (hoomd.md.nlist.NeighborList): Neighbor list.
+        r_cut (float): Cutoff radius for patch–patch interactions.
+
+    Attributes:
+        epsilon (float): Attraction strength.
+        width (float): Hermite transition width in cosine space (default 0.5).
+        r_cut (float): Cutoff radius.
+        partners (list[tuple[int,int]]): List of ``(attractor_tag,
+            director_tag)`` pairs defining patch directions.
+
+    Example::
+
+        nlist = hoomd.md.nlist.Cell(buffer=0.4)
+        patch = align_angle.ExternalPatch(nlist=nlist, r_cut=3.0)
+        patch.epsilon = 5.0
+        patch.width = 0.5
+        patch.partners = [(0, 1), (2, 3)]
+        sim.operations.integrator.forces.append(patch)
+    """
+
+    _cpp_class_name = "ExternalPatchForceCompute"
+    _ext_module = _align_angle
+
+    def __init__(self, nlist, r_cut):
+        super().__init__()
+
+        # Store nlist
+        param_dict = ParameterDict(nlist=hoomd.md.nlist.NeighborList)
+        param_dict["nlist"] = nlist
+        self._param_dict.update(param_dict)
+
+        # Store the parameters that will be forwarded to C++
+        self._r_cut = float(r_cut)
+        self._epsilon = 0.0
+        self._width = 0.5
+
+        # Partner list — stored Python-side, pushed to C++ at attach
+        self._partners = []
+
+    # ─── Properties ───────────────────────────────────────────────────────
+
+    @property
+    def epsilon(self):
+        """float: Attraction strength."""
+        return self._epsilon
+
+    @epsilon.setter
+    def epsilon(self, value):
+        self._epsilon = float(value)
+        if self._attached:
+            self._cpp_obj.setParams(self._make_params_dict())
+
+    @property
+    def width(self):
+        """float: Hermite transition width in cosine space."""
+        return self._width
+
+    @width.setter
+    def width(self, value):
+        self._width = float(value)
+        if self._attached:
+            self._cpp_obj.setParams(self._make_params_dict())
+
+    @property
+    def r_cut(self):
+        """float: Cutoff radius."""
+        return self._r_cut
+
+    @r_cut.setter
+    def r_cut(self, value):
+        self._r_cut = float(value)
+        if self._attached:
+            self._cpp_obj.setRCut(self._r_cut)
+
+    @property
+    def partners(self):
+        """list[tuple[int,int]]: Attractor–director partner pairs."""
+        return self._partners
+
+    @partners.setter
+    def partners(self, pairs):
+        self._partners = list(pairs)
+        if self._attached:
+            self._cpp_obj.setPartners(self._partners)
+
+    # ─── Internal helpers ─────────────────────────────────────────────────
+
+    def _make_params_dict(self):
+        return dict(
+            epsilon=self._epsilon,
+            width=self._width,
+            r_cut=self._r_cut,
+        )
+
+    def _attach_hook(self):
+        # Attach the neighbor list
+        if self.nlist._attached and self._simulation != self.nlist._simulation:
+            self.nlist = copy.deepcopy(self.nlist)
+        self.nlist._attach(self._simulation)
+        self.nlist._cpp_obj.setStorageMode(
+            _md.NeighborList.storageMode.full
+        )
+
+        # Construct the C++ object
+        if isinstance(self._simulation.device, hoomd.device.CPU):
+            cpp_cls = getattr(self._ext_module, self._cpp_class_name)
+        else:
+            cpp_cls = getattr(
+                self._ext_module, self._cpp_class_name + "GPU"
+            )
+
+        self._cpp_obj = cpp_cls(
+            self._simulation.state._cpp_sys_def,
+            self.nlist._cpp_obj,
+        )
+
+        # Push parameters and partners to C++
+        self._cpp_obj.setParams(self._make_params_dict())
+        if self._partners:
+            self._cpp_obj.setPartners(self._partners)
+
+    def _detach_hook(self):
+        self.nlist._detach()
+

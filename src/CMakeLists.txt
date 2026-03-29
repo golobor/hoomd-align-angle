@@ -4,12 +4,14 @@ set(_${COMPONENT_NAME}_sources
     module.cc
     AlignAngleForceCompute.cc
     AnisoPotentialPairNematic.cc
+    ExternalPatchForceCompute.cc
     SinSqDihedralForceCompute.cc
     )
 
 set(_${COMPONENT_NAME}_headers
     AlignAngleForceCompute.h
     EvaluatorPairNematic.h
+    ExternalPatchForceCompute.h
     SinSqDihedralForceCompute.h
     )
 
@@ -17,17 +19,21 @@ if (ENABLE_HIP)
     list(APPEND _${COMPONENT_NAME}_sources
          AlignAngleForceComputeGPU.cc
          AnisoPotentialPairNematicGPU.cc
+         ExternalPatchForceComputeGPU.cc
          SinSqDihedralForceComputeGPU.cc
          )
     list(APPEND _${COMPONENT_NAME}_headers
          AlignAngleForceComputeGPU.h
          AlignAngleForceGPU.cuh
+         ExternalPatchForceComputeGPU.h
+         ExternalPatchForceGPU.cuh
          SinSqDihedralForceComputeGPU.h
          SinSqDihedralForceGPU.cuh
          )
     set(_${COMPONENT_NAME}_cu_sources
         AlignAngleForceGPU.cu
         AnisoPotentialPairNematicGPUKernel.cu
+        ExternalPatchForceGPU.cu
         SinSqDihedralForceGPU.cu
         )
     set_source_files_properties(${_${COMPONENT_NAME}_cu_sources}

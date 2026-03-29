@@ -394,3 +394,152 @@ class TestDirectorAlignMultiplicity:
         if forces is not None:
             total_f = np.sum(forces, axis=0)
             np.testing.assert_allclose(total_f, [0, 0, 0], atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Helpers: Python reference and HOOMD query
+# ---------------------------------------------------------------------------
+
+def _rotate_quat(q, v):
+    """Rotate vector v by quaternion q = [w, x, y, z] (double precision)."""
+    w, x, y, z = q
+    return np.array([
+        (1 - 2*(y*y + z*z)) * v[0] + 2*(x*y - w*z) * v[1] + 2*(x*z + w*y) * v[2],
+        2*(x*y + w*z) * v[0] + (1 - 2*(x*x + z*z)) * v[1] + 2*(y*z - w*x) * v[2],
+        2*(x*z - w*y) * v[0] + 2*(y*z + w*x) * v[1] + (1 - 2*(x*x + y*y)) * v[2],
+    ])
+
+
+def _python_ref(positions, q_i, K, multiplicity=1, phase=0.0):
+    """Compute energy, forces, torque analytically in Python (double precision).
+
+    Returns (energy, F_i, F_j, F_k, tau_i).
+    """
+    d = positions[2] - positions[1]  # r_k - r_j
+    d_mag = np.linalg.norm(d)
+    d_hat = d / d_mag
+
+    n_hat = _rotate_quat(q_i, np.array([1.0, 0.0, 0.0]))
+    cos_theta = np.clip(np.dot(n_hat, d_hat), -1.0, 1.0)
+    sin_theta = np.sqrt(1.0 - cos_theta ** 2)
+    theta = np.arccos(cos_theta)
+
+    m = float(multiplicity)
+    mp = m * theta + phase
+    energy = 0.5 * K * (1.0 - np.cos(mp))
+
+    if sin_theta > 1e-12:
+        f = m * np.sin(mp) / sin_theta
+    else:
+        f = 0.0
+
+    n_perp = n_hat - cos_theta * d_hat
+    F_j = -0.5 * K * f / d_mag * n_perp
+    F_k = -F_j
+    F_i = np.zeros(3)
+    tau_i = 0.5 * K * f * np.cross(n_hat, d_hat)
+
+    return energy, F_i, F_j, F_k, tau_i
+
+
+def _get_hoomd_results(device, positions, orientations, k, multiplicity=1, phase=0.0):
+    """Run HOOMD, return (energy, forces[3,3], torques[3,3])."""
+    snap = make_snapshot_with_angles(device, positions, orientations)
+    sim = hoomd.Simulation(device=device)
+    sim.create_state_from_snapshot(snap)
+    force = align_angle.DirectorAlign()
+    force.params["align"] = dict(k=k, multiplicity=multiplicity, phase=phase)
+    nve = hoomd.md.methods.ConstantVolume(filter=hoomd.filter.All())
+    integrator = hoomd.md.Integrator(dt=0.001, methods=[nve], forces=[force])
+    sim.operations.integrator = integrator
+    sim.run(0)
+    return float(sum(force.energies)), np.array(force.forces), np.array(force.torques)
+
+
+# Mixed-precision (ForceReal = float) tolerance
+_ATOL = 5e-4
+
+
+class TestAnalyticReference:
+    """Compare HOOMD forces/torques/energy against a Python reference.
+
+    Uses a non-trivial 3D configuration and verifies all components.
+    """
+
+    @pytest.fixture()
+    def config1(self):
+        """45° rotation around (1,1,1)/sqrt(3); K=7.5, m=1, phase=0."""
+        pos = np.array([[-0.7, 0.3, 0.1], [0.2, 0.5, -0.2], [1.1, -0.1, 0.4]])
+        angle = np.pi / 4
+        axis = np.array([1, 1, 1]) / np.sqrt(3)
+        q0 = np.array([np.cos(angle / 2), *(np.sin(angle / 2) * axis)])
+        ori = np.array([q0, [1, 0, 0, 0], [1, 0, 0, 0]], dtype=float)
+        return pos, ori, q0, 7.5, 1, 0.0
+
+    @pytest.fixture()
+    def config2(self):
+        """60° rotation around y; K=5, m=2, phase=0.3."""
+        pos = np.array([[-0.7, 0.3, 0.1], [0.2, 0.5, -0.2], [1.1, -0.1, 0.4]])
+        angle = np.pi / 3
+        axis = np.array([0, 1, 0])
+        q0 = np.array([np.cos(angle / 2), *(np.sin(angle / 2) * axis)])
+        ori = np.array([q0, [1, 0, 0, 0], [1, 0, 0, 0]], dtype=float)
+        return pos, ori, q0, 5.0, 2, 0.3
+
+    @pytest.fixture()
+    def config3(self):
+        """120° rotation around (0,0,1); K=12, m=1, phase=pi. Non-trivial guide positions."""
+        pos = np.array([[0.5, -0.3, 0.8], [-1.2, 0.7, 0.0], [0.3, 1.5, -0.6]])
+        angle = 2 * np.pi / 3
+        axis = np.array([0, 0, 1])
+        q0 = np.array([np.cos(angle / 2), *(np.sin(angle / 2) * axis)])
+        ori = np.array([q0, [1, 0, 0, 0], [1, 0, 0, 0]], dtype=float)
+        return pos, ori, q0, 12.0, 1, np.pi
+
+    @pytest.mark.parametrize("cfg_name", ["config1", "config2", "config3"])
+    def test_energy(self, device, cfg_name, request):
+        pos, ori, q0, K, mult, phase = request.getfixturevalue(cfg_name)
+        ref_e, _, _, _, _ = _python_ref(pos, q0, K, mult, phase)
+        hoomd_e, _, _ = _get_hoomd_results(device, pos, ori, K, mult, phase)
+        assert hoomd_e == pytest.approx(ref_e, abs=_ATOL)
+
+    @pytest.mark.parametrize("cfg_name", ["config1", "config2", "config3"])
+    def test_forces_j(self, device, cfg_name, request):
+        pos, ori, q0, K, mult, phase = request.getfixturevalue(cfg_name)
+        _, _, ref_Fj, _, _ = _python_ref(pos, q0, K, mult, phase)
+        _, hoomd_f, _ = _get_hoomd_results(device, pos, ori, K, mult, phase)
+        np.testing.assert_allclose(hoomd_f[1], ref_Fj, atol=_ATOL)
+
+    @pytest.mark.parametrize("cfg_name", ["config1", "config2", "config3"])
+    def test_forces_k(self, device, cfg_name, request):
+        pos, ori, q0, K, mult, phase = request.getfixturevalue(cfg_name)
+        _, _, _, ref_Fk, _ = _python_ref(pos, q0, K, mult, phase)
+        _, hoomd_f, _ = _get_hoomd_results(device, pos, ori, K, mult, phase)
+        np.testing.assert_allclose(hoomd_f[2], ref_Fk, atol=_ATOL)
+
+    @pytest.mark.parametrize("cfg_name", ["config1", "config2", "config3"])
+    def test_torque_i(self, device, cfg_name, request):
+        pos, ori, q0, K, mult, phase = request.getfixturevalue(cfg_name)
+        _, _, _, _, ref_tau = _python_ref(pos, q0, K, mult, phase)
+        _, _, hoomd_t = _get_hoomd_results(device, pos, ori, K, mult, phase)
+        np.testing.assert_allclose(hoomd_t[0], ref_tau, atol=_ATOL)
+
+    @pytest.mark.parametrize("cfg_name", ["config1", "config2", "config3"])
+    def test_no_force_on_i(self, device, cfg_name, request):
+        pos, ori, q0, K, mult, phase = request.getfixturevalue(cfg_name)
+        _, hoomd_f, _ = _get_hoomd_results(device, pos, ori, K, mult, phase)
+        np.testing.assert_allclose(hoomd_f[0], [0, 0, 0], atol=1e-10)
+
+    @pytest.mark.parametrize("cfg_name", ["config1", "config2", "config3"])
+    def test_no_torque_on_guides(self, device, cfg_name, request):
+        pos, ori, q0, K, mult, phase = request.getfixturevalue(cfg_name)
+        _, _, hoomd_t = _get_hoomd_results(device, pos, ori, K, mult, phase)
+        np.testing.assert_allclose(hoomd_t[1], [0, 0, 0], atol=1e-10)
+        np.testing.assert_allclose(hoomd_t[2], [0, 0, 0], atol=1e-10)
+
+    @pytest.mark.parametrize("cfg_name", ["config1", "config2", "config3"])
+    def test_newtons_third_law(self, device, cfg_name, request):
+        pos, ori, q0, K, mult, phase = request.getfixturevalue(cfg_name)
+        _, hoomd_f, _ = _get_hoomd_results(device, pos, ori, K, mult, phase)
+        total_f = np.sum(hoomd_f, axis=0)
+        np.testing.assert_allclose(total_f, [0, 0, 0], atol=1e-10)
